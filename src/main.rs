@@ -4,7 +4,8 @@ use crossterm::{
     event::{self, Event, KeyCode},
 };
 use crossterm::{terminal, ExecutableCommand};
-use invaders::{frame::{self, new_frame}, render};
+use frame::Drawable;
+use invaders::{frame::{self, new_frame}, player::Player, render};
 use rusty_audio::Audio;
 use std::io;
 use std::{
@@ -46,9 +47,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     // Game loop
+    let mut player = Player::new();
     'gameloop: loop {
         // Per frame init
-        let curr_frame = new_frame();
+        let mut curr_frame = new_frame();
 
         // Input
         while event::poll(Duration::default())? {
@@ -57,13 +59,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
-                    }
+                    },
+                    KeyCode::Left => player.move_left(),
+                    KeyCode::Right => player.move_right(),
                     _ => {}
                 }
             }
-        }
+        };
 
         // Draw and Render Section
+        player.draw(&mut curr_frame);
         let _ = render_tx.send(curr_frame); // Silently ignoring the error
         thread::sleep(Duration::from_millis(1));
     }
