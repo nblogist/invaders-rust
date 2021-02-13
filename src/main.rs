@@ -5,11 +5,7 @@ use crossterm::{
 };
 use crossterm::{terminal, ExecutableCommand};
 use frame::Drawable;
-use invaders::{
-    frame::{self, new_frame},
-    player::Player,
-    render,
-};
+use invaders::{frame::{self, new_frame}, invaders::Invaders, player::Player, render};
 use rusty_audio::Audio;
 use std::{
     error::Error,
@@ -50,9 +46,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     });
 
-    // Game loop
     let mut player = Player::new();
     let mut instant = Instant::now();
+    let mut invaders = Invaders::new();
+    // Game loop
     'gameloop: loop {
         // Per frame init
         let delta = instant.elapsed();
@@ -81,11 +78,30 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // Updates
         player.update(delta);
+        if invaders.update(delta){
+            audio.play("move");
+        }
+        if player.detect_hits(&mut invaders){
+            audio.play("explode");
+        }
 
         // Draw and Render Section
-        player.draw(&mut curr_frame);
+        let drawables: Vec<&dyn Drawable> = vec![&player, &invaders];
+        for drawable in drawables{
+            drawable.draw(&mut curr_frame)
+        }
         let _ = render_tx.send(curr_frame); // Silently ignoring the error
         thread::sleep(Duration::from_millis(1));
+
+        // Win or Lose?
+        if invaders.all_killed(){
+            audio.play("win");
+            break 'gameloop;
+        }
+        if invaders.reached_bottom(){
+            audio.play("lose");
+            break 'gameloop;
+        }
     }
 
     // Clean up
