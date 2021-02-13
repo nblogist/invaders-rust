@@ -5,15 +5,19 @@ use crossterm::{
 };
 use crossterm::{terminal, ExecutableCommand};
 use frame::Drawable;
-use invaders::{frame::{self, new_frame}, player::Player, render};
+use invaders::{
+    frame::{self, new_frame},
+    player::Player,
+    render,
+};
 use rusty_audio::Audio;
-use std::io;
 use std::{
     error::Error,
     sync::mpsc,
     thread::{self},
     time::Duration,
 };
+use std::{io, time::Instant};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut audio = Audio::new();
@@ -48,8 +52,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Game loop
     let mut player = Player::new();
+    let mut instant = Instant::now();
     'gameloop: loop {
         // Per frame init
+        let delta = instant.elapsed();
+        instant = Instant::now();
         let mut curr_frame = new_frame();
 
         // Input
@@ -59,13 +66,21 @@ fn main() -> Result<(), Box<dyn Error>> {
                     KeyCode::Esc | KeyCode::Char('q') => {
                         audio.play("lose");
                         break 'gameloop;
-                    },
+                    }
                     KeyCode::Left => player.move_left(),
                     KeyCode::Right => player.move_right(),
+                    KeyCode::Char(' ') | KeyCode::Enter => {
+                        if player.shoot() {
+                            audio.play("pew");
+                        }
+                    }
                     _ => {}
                 }
             }
-        };
+        }
+
+        // Updates
+        player.update(delta);
 
         // Draw and Render Section
         player.draw(&mut curr_frame);
